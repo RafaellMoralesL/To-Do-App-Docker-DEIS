@@ -1,0 +1,16 @@
+
+node_modules
+dist
+build
+*.db
+.env
+.cache
+
+
+apply-progress.md
+development-test-note.md
+docker-push.md
+exploration.md
+runtime-verification-note.md
+*.bak
+*.sh

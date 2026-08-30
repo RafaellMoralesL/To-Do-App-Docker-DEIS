@@ -1,0 +1,15 @@
+
+.git
+.gitignore
+
+
+sonar-project.properties
+trivy-scan.sh
+*.bak
+
+
+node_modules
+*.db
+.env
+
+

@@ -1,6 +1,6 @@
 import sqlite3 from 'sqlite3';
-import fs from 'fs';
-import path from 'path';
+import fs from 'node:fs';
+import path from 'node:path';
 
 const directorioBaseDatos = '/backend/data';
 const archivoBaseDatos = path.join(directorioBaseDatos, 'todo.db');

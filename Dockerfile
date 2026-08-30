@@ -22,14 +22,11 @@ WORKDIR /backend
 
 RUN apk update && \
     apk upgrade --no-cache && \
-    apk add --no-cache nodejs libstdc++ libgcc
-
-
-RUN addgroup -g 1000 node && \
-    adduser -u 1000 -G node -s /bin/sh -D node
-
-
-RUN mkdir -p /backend/data && chown -R node:node /backend
+    apk add --no-cache nodejs libstdc++ libgcc && \
+    addgroup -g 1000 node && \
+    adduser -u 1000 -G node -s /bin/sh -D node && \
+    mkdir -p /backend/data && \
+    chown -R node:node /backend
 
 
 COPY --from=backend-compile /app/backend/node_modules ./node_modules

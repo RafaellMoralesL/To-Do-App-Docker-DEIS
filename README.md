@@ -23,26 +23,42 @@ A continuación se describen las dos formas de ejecutar la aplicación. Ambos fl
    ```bash
    docker build --no-cache -t todo-app:latest .
    ```
-4. Inicia el contenedor mapeando el puerto y configurando el volumen persistente para SQLite:
-   ```bash
-   docker run -d -p 3000:3000 --name contenedor-todo -v \$(pwd)/backend/data:/backend/data todo-app:latest
-   ```
+4. Inicia el contenedor mapeando el puerto y configurando el volumen persistente para SQLite según tu sistema operativo (opcional):
+
+Comando sin volumen persistente, si se apaga el contenedor, las  tareas no persisten:  
+   * **Linux / macOS /Windows/Zsh:**
+     ```bash
+     docker run -d -p 3000:3000 --name contenedor-todo todo-app:latest
+     ```
+
+Comando para volumen persistente, aprovechando la base SQLite integrada en el proyecto:
+   * **Linux / macOS (Bash/Zsh):**
+     ```bash
+     docker run -d -p 3000:3000 --name contenedor-todo -v $(pwd)/backend/data:/backend/data todo-app:latest
+     ```
+   * **Windows (PowerShell):**
+     ```powershell
+     docker run -d -p 3000:3000 --name contenedor-todo -v ${PWD}/backend/data:/backend/data todo-app:latest
+     ```
 5. Abre un navegador web e ingresa a: `http://localhost:3000`
 
 ### Opción B: Ejecutar desde el repositorio (Desarrollo local)
-1. Abre una terminal e instala las dependencias de ambas carpetas:
+1. Abre una terminal en la raíz del proyecto y crea la carpeta para la base de datos:
+   * **Linux / macOS:** `mkdir -p backend/data`
+   * **Windows (PowerShell):** `mkdir backend/data`
+2. Instala las dependencias de ambas carpetas:
    ```bash
    cd backend && npm install && cd ../frontend && npm install && cd ..
    ```
-2. Compila el frontend (React + Vite):
+3. Compila el frontend (React + Vite):
    ```bash
    cd frontend && npm run build && cd ..
    ```
-3. Compila y arranca el backend (Express + TypeScript):
+4. Compila y arranca el backend (Express + TypeScript):
    ```bash
    cd backend && npm run build && npm start
    ```
-4. Abre un navegador web e ingresa a: `http://localhost:3000`
+5. Abre un navegador web e ingresa a: `http://localhost:3000`
 
 ## Estructura del proyecto
 - `backend/src/app.ts`: Servicio REST con endpoints para crear (`POST /api/tasks`), listar (`GET /api/tasks`), actualizar (`PUT /api/tasks/:id`) y eliminar (`DELETE /api/tasks/:id`). Usa validación con Zod y persistencia en SQLite.
@@ -52,7 +68,6 @@ A continuación se describen las dos formas de ejecutar la aplicación. Ambos fl
 - `Dockerfile`: Construcción multi-stage. Compila el frontend con `node:slim`, procesa el backend con herramientas nativas de compilación, y empaqueta la producción sobre un entorno `alpine` plano con un usuario no-root sin privilegios para mitigar vectores de ataque.
 - `.dockerignore`: Exclusiones de archivos generados, bitácoras locales y dependencias de desarrollo para reducir drásticamente el tamaño final de la imagen.
 - `sonar-project.properties`: Configuración del análisis estático con SonarQube (Fuentes: `backend/src`, `frontend/src`; Exclusiones: `dist`, `node_modules`).
-
 
 ## Prompts utilizados con la IA y aportes al proyecto
 
@@ -69,4 +84,4 @@ A continuación se describen las dos formas de ejecutar la aplicación. Ambos fl
 - **Aporte:** Se analizó el riesgo de dependencias heredadas de las herramientas del upstream de Node. Se optó por una solución de arquitectura profesional: migrar la etapa de producción a una base limpia de Alpine plano, erradicando los paquetes vulnerables globales.
 
 ### Prompt 5: Actuando como experto en análisis de desarrollo de software, necesito un md agents para crear una aplicación sencilla y llevarla por un flujo básico de calidad y seguridad antes de publicar su imagen en Docker Hub.
-- **Aporte:** Se definió un archivo guia, el cual demostraba el flujo del proyecto (estructura del monorepo, capas de seguridad y calidad). Se descartó la alternativa de Java/Spring Boot porque no cumplía con los requisitos de imagen ligera y despliegue simple en contenedor.
+- **Aporte:** Se definió un archivo guía el cual demostraba el flujo del proyecto (estructura del monorepo, capas de seguridad y calidad). Se descartó la alternativa de Java/Spring Boot porque no cumplía con los requisitos de imagen ligera y despliegue simple en contenedor.

@@ -25,8 +25,8 @@
     "vite": "^4.5.0"
   },
   "overrides": {
-    "brace-expansion": "^2.1.4",
-    "tar": "^7.4.3",
+    "brace-expansion": "^5.0.7",
+    "tar": "^7.5.16",
     "undici": "^6.28.0",
     "ip-address": "^10.3.1"
   }

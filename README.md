@@ -23,6 +23,11 @@ A continuación se describen las dos formas de ejecutar la aplicación. Ambos fl
    ```bash
    docker build --no-cache -t todo-app:latest .
    ```
+
+Nota: Existe una variante endurecida (`Dockerfile.hardened`) que reduce vulnerabilidades de `npm` (ver `package.json` `overrides`) y mantiene la base `node:22-alpine` sin `apk upgrade`. Se construye con:
+   ```bash
+   docker build -f Dockerfile.hardened --no-cache -t todo-app:hardened .
+   ```
 4. Inicia el contenedor mapeando el puerto y configurando el volumen persistente para SQLite según tu sistema operativo (opcional):
 
 Comando sin volumen persistente, si se apaga el contenedor, las  tareas no persisten:  

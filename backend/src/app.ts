@@ -1,4 +1,5 @@
 import express, { Request, Response, NextFunction, Express } from 'express';
+import { z } from 'zod';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import { sanitizarCargaTarea, esquemaActualizacionTarea } from './schemas';
@@ -12,9 +13,10 @@ servidorWeb.use(helmet());
 
 const limitadorSolicitudes = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 100,
+  max: process.env.NODE_ENV === 'production' ? 100 : 10000,
   standardHeaders: true,
   legacyHeaders: false,
+  skip: (req) => process.env.RATE_LIMIT_DISABLED === 'true',
   message: { error: 'Too many requests, please try again later.' },
 });
 servidorWeb.use(limitadorSolicitudes);
@@ -54,6 +56,20 @@ servidorWeb.get('/api/tasks', (req: Request, res: Response, next: NextFunction) 
     next(error);
   }
 });
+servidorWeb.get('/api/tasks/:id', (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const identificadorParametro = req.params.id;
+    const baseDatos = obtenerBaseDatos();
+    baseDatos.get('SELECT * FROM todos WHERE id = ?', [identificadorParametro], (errorLectura, registroResultado) => {
+      if (errorLectura) return next(errorLectura);
+      if (!registroResultado) return res.status(404).json({ error: 'Not found' });
+      res.json(registroResultado);
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
 
 servidorWeb.put('/api/tasks/:id', (req: Request, res: Response, next: NextFunction) => {
   try {
@@ -111,6 +127,9 @@ servidorWeb.delete('/api/tasks/:id', (req: Request, res: Response, next: NextFun
 });
 
 servidorWeb.use((error: any, req: Request, res: Response, _next: NextFunction) => {
+  if (error instanceof z.ZodError || (error && error.name === 'ZodError')) {
+    return res.status(422).json({ error: 'Validation error', details: error.errors || error });
+  }
   res.status(500).json({ error: 'Internal server error' });
 });
 

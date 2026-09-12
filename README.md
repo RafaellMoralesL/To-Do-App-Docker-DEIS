@@ -53,7 +53,6 @@ docker build --no-cache -t tu_usuario_hub/todo-app:1.0 .
 # Para compilar la Versión 2.0
 docker build --no-cache -t tu_usuario_hub/todo-app:2.0 .
 ```
-*(Nota: Si deseas probar la variante endurecida que reduce vulnerabilidades de npm, puedes compilar usando: `docker build -f Dockerfile.hardened --no-cache -t tu_usuario_hub/todo-app:hardened .`)*
 
 ### Paso 2: Crear carpeta de persistencia y ejecutar
 Para evitar problemas de permisos de escritura con el archivo SQLite interno (`todo.db`), cree la carpeta localmente antes de iniciar el contenedor:

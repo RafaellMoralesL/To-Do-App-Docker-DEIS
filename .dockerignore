@@ -1,15 +1,23 @@
-
 .git
 .gitignore
 
+node_modules
+dist
+public
+
+*.db
+.env
+.env.*
+
+*.log
+*.bak
+*.tsbuildinfo
+
+.DS_Store
+coverage
+reports
+.nyc_output
+.eslintcache
 
 sonar-project.properties
 trivy-scan.sh
-*.bak
-
-
-node_modules
-*.db
-.env
-
-

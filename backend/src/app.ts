@@ -1,15 +1,23 @@
 import express, { Request, Response, NextFunction, Express } from 'express';
-import { z } from 'zod';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
-import { sanitizarCargaTarea, esquemaActualizacionTarea } from './schemas';
-import { obtenerBaseDatos } from './database';
+import { ZodError } from 'zod';
+import { esquemaCreacionTarea, esquemaActualizacionTarea, type EstadoTarea } from './schemas';
+import { queryAll, queryOne, executeRun } from './database';
+
+type TareaRecord = {
+  id?: number;
+  title: string;
+  description?: string | null;
+  estado: EstadoTarea;
+  created_at?: string;
+};
 
 const servidorWeb: Express = express();
+servidorWeb.disable('x-powered-by')
 
+servidorWeb.set('trust proxy', 1);
 
-
-servidorWeb.use(helmet());
 
 const limitadorSolicitudes = rateLimit({
   windowMs: 15 * 60 * 1000,
@@ -21,115 +29,127 @@ const limitadorSolicitudes = rateLimit({
 });
 servidorWeb.use(limitadorSolicitudes);
 
-servidorWeb.use(express.json());
+servidorWeb.use(express.json({ limit: '16kb' }));
 
-servidorWeb.post('/api/tasks', (req: Request, res: Response, next: NextFunction) => {
+servidorWeb.post('/api/tasks', async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const cargaDatos = sanitizarCargaTarea(req.body);
-    const baseDatos = obtenerBaseDatos();
+    const cargaDatos = esquemaCreacionTarea.parse(req.body);
+    const resultado = await executeRun(
 
-    const consultaPreparada = baseDatos.prepare('INSERT INTO todos (title, description, completed) VALUES (?, ?, ?)');
-    consultaPreparada.run(cargaDatos.title, cargaDatos.description || null, cargaDatos.completed ?? 0, function (this: any, error: Error | null) {
-      if (error) {
-        return next(error);
-      }
-      const identificadorNuevo = this.lastID;
-      consultaPreparada.finalize();
-      baseDatos.get('SELECT * FROM todos WHERE id = ?', [identificadorNuevo], (errorLectura, registroResultado) => {
-        if (errorLectura) return next(errorLectura);
-        res.status(201).json(registroResultado);
-      });
-    });
+      'INSERT INTO todos (title, description, estado, created_at) VALUES (?, ?, ?, datetime(\'now\'))',
+      [cargaDatos.title, cargaDatos.description ?? null, cargaDatos.estado]
+    );
+
+    const tareaRecienCreada = await queryOne<TareaRecord>('SELECT * FROM todos WHERE id = ?', [resultado.lastID]);
+    if (!tareaRecienCreada) {
+      return res.status(500).json({ error: 'Failed to retrieve created task' });
+    }
+
+    res.status(201).json(tareaRecienCreada);
   } catch (error) {
     next(error);
   }
 });
 
-servidorWeb.get('/api/tasks', (req: Request, res: Response, next: NextFunction) => {
+servidorWeb.get('/api/tasks', async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const baseDatos = obtenerBaseDatos();
-    baseDatos.all('SELECT * FROM todos', (error, registros) => {
-      if (error) return next(error);
-      res.json(registros || []);
-    });
+    const registros = await queryAll<TareaRecord>('SELECT * FROM todos');
+    res.json(registros);
   } catch (error) {
     next(error);
   }
 });
-servidorWeb.get('/api/tasks/:id', (req: Request, res: Response, next: NextFunction) => {
+
+servidorWeb.get('/api/tasks/:id', async (req: Request, res: Response, next: NextFunction) => {
   try {
     const identificadorParametro = req.params.id;
-    const baseDatos = obtenerBaseDatos();
-    baseDatos.get('SELECT * FROM todos WHERE id = ?', [identificadorParametro], (errorLectura, registroResultado) => {
-      if (errorLectura) return next(errorLectura);
-      if (!registroResultado) return res.status(404).json({ error: 'Not found' });
-      res.json(registroResultado);
-    });
+    const registroResultado = await queryOne<TareaRecord>('SELECT * FROM todos WHERE id = ?', [identificadorParametro]);
+
+    if (!registroResultado) {
+      return res.status(404).json({ error: 'Not found' });
+    }
+
+    res.json(registroResultado);
   } catch (error) {
     next(error);
   }
 });
 
-
-servidorWeb.put('/api/tasks/:id', (req: Request, res: Response, next: NextFunction) => {
+servidorWeb.put('/api/tasks/:id', async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const datosValidados = esquemaActualizacionTarea.parse(req.body);
-    const datosSanitizados: Record<string, unknown> = {};
-    if (datosValidados.title !== undefined) datosSanitizados.title = datosValidados.title;
-    if (datosValidados.description !== undefined) datosSanitizados.description = datosValidados.description;
-    if (datosValidados.completed !== undefined) datosSanitizados.completed = datosValidados.completed;
-
+    const cuerpoActualizacion = esquemaActualizacionTarea.parse(req.body);
     const identificadorParametro = req.params.id;
-    const baseDatos = obtenerBaseDatos();
 
     const camposActualizados: string[] = [];
     const valoresActualizados: (string | number | null)[] = [];
 
-    for (const [key, val] of Object.entries(datosSanitizados)) {
-      camposActualizados.push(`${key} = ?`);
-      valoresActualizados.push(val as string | number | null);
+    if (cuerpoActualizacion.title !== undefined) {
+      camposActualizados.push('title = ?');
+      valoresActualizados.push(cuerpoActualizacion.title);
     }
-    valoresActualizados.push(identificadorParametro as string);
+
+    if (cuerpoActualizacion.description !== undefined) {
+      camposActualizados.push('description = ?');
+      valoresActualizados.push(cuerpoActualizacion.description ?? null);
+    }
+
+    if (cuerpoActualizacion.estado !== undefined) {
+      camposActualizados.push('estado = ?');
+      valoresActualizados.push(cuerpoActualizacion.estado);
+    }
 
     if (camposActualizados.length === 0) {
       return res.status(400).json({ error: 'No valid fields to update' });
     }
 
-    baseDatos.run(`UPDATE todos SET ${camposActualizados.join(', ')} WHERE id = ?`, valoresActualizados, function (error) {
-      if (error) return next(error);
-      if (this.changes === 0) {
-        return res.status(404).json({ error: 'Not found' });
-      }
-      baseDatos.get('SELECT * FROM todos WHERE id = ?', [identificadorParametro], (errorLectura, registroResultado) => {
-        if (errorLectura) return next(errorLectura);
-        res.json(registroResultado);
-      });
-    });
+    await executeRun(
+      `UPDATE todos SET ${camposActualizados.join(', ')} WHERE id = ?`,
+      [...valoresActualizados, identificadorParametro]
+    );
+
+    const registroActualizado = await queryOne<TareaRecord>('SELECT * FROM todos WHERE id = ?', [identificadorParametro]);
+    if (!registroActualizado) {
+      return res.status(404).json({ error: 'Not found' });
+    }
+
+    res.json(registroActualizado);
   } catch (error) {
     next(error);
   }
 });
 
-servidorWeb.delete('/api/tasks/:id', (req: Request, res: Response, next: NextFunction) => {
+servidorWeb.delete('/api/tasks/:id', async (req: Request, res: Response, next: NextFunction) => {
   try {
     const identificadorParametro = req.params.id;
-    const baseDatos = obtenerBaseDatos();
-    baseDatos.run('DELETE FROM todos WHERE id = ?', [identificadorParametro], function (error) {
-      if (error) return next(error);
-      if (this.changes === 0) {
-        return res.status(404).json({ error: 'Not found' });
-      }
-      res.status(204).send();
-    });
+    const resultado = await executeRun('DELETE FROM todos WHERE id = ?', [identificadorParametro]);
+
+    if (resultado.changes === 0) {
+      return res.status(404).json({ error: 'Not found' });
+    }
+
+    res.status(204).send();
   } catch (error) {
     next(error);
   }
 });
 
-servidorWeb.use((error: any, req: Request, res: Response, _next: NextFunction) => {
-  if (error instanceof z.ZodError || (error && error.name === 'ZodError')) {
-    return res.status(422).json({ error: 'Validation error', details: error.errors || error });
+servidorWeb.use((error: unknown, req: Request, res: Response, _next: NextFunction) => {
+
+  if (error instanceof ZodError) {
+    return res.status(400).json({
+      error: 'Invalid request payload',
+      details: error.issues.map((problema) => ({
+        path: problema.path.join('.'),
+        message: problema.message,
+      })),
+    });
   }
+
+  if (error instanceof Error) {
+    console.error('Error no manejado:', error.message);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+  console.error('Error desconocido:', error);
   res.status(500).json({ error: 'Internal server error' });
 });
 

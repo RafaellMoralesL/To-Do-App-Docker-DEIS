@@ -6,10 +6,7 @@ import { sanitizarCargaTarea, esquemaActualizacionTarea } from './schemas';
 import { obtenerBaseDatos } from './database';
 
 const servidorWeb: Express = express();
-
-
-
-servidorWeb.use(helmet());
+servidorWeb.disable('x-powered-by')
 
 const limitadorSolicitudes = rateLimit({
   windowMs: 15 * 60 * 1000,

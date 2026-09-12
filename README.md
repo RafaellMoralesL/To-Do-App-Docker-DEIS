@@ -90,8 +90,8 @@ docker images
 ### Paso 2: Desplegar Versión Inicial (v1.0)
 Cree el directorio de producción aislado en la raíz del servidor y levante el servicio:
 ```bash
-mkdir -p /srv/todolist-data
-docker run -d --name todolist -p 3000:3000 -v /srv/todolist-data:/backend/data tu_usuario_hub/todo-app:1.0
+docker volume create todo-db
+docker run -d --name todolist -p 3000:3000 -v todo-db:/backend/data tu_usuario_hub/todo-app:1.0
 ```
 *Acceso público del servidor:* `http://IP_SERVIDOR:3000` (Proceda a crear tareas base en la interfaz).
 
@@ -99,7 +99,7 @@ docker run -d --name todolist -p 3000:3000 -v /srv/todolist-data:/backend/data t
 Detenga la versión antigua para liberar el candado del archivo de base de datos e inicie la nueva versión apuntando **exactamente al mismo volumen**:
 ```bash
 docker stop todolist && docker rm todolist
-docker run -d --name todolist -p 3000:3000 -v /srv/todolist-data:/backend/data tu_usuario_hub/todo-app:2.0
+docker run -d --name todolist -p 3000:3000 -v todo-db:/backend/data tu_usuario_hub/todo-app:2.0
 ```
 *Al refrescar el navegador, la nueva interfaz v2.0 heredará y mostrará las tareas intactas creadas en la v1.0.*
 
@@ -107,7 +107,7 @@ docker run -d --name todolist -p 3000:3000 -v /srv/todolist-data:/backend/data t
 Si la nueva versión presenta fallas imprevistas, se ejecuta la estrategia de retorno inmediato a la versión estable anterior bajo el mismo principio:
 ```bash
 docker stop todolist && docker rm todolist
-docker run -d --name todolist -p 3000:3000 -v /srv/todolist-data:/backend/data tu_usuario_hub/todo-app:1.0
+docker run -d --name todolist -p 3000:3000 -v todo-db:/backend/data tu_usuario_hub/todo-app:1.0
 ```
 
 ---
